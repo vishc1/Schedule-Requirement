@@ -253,6 +253,30 @@ export default function Home() {
             )}
           </div>
         )}
+
+        {/* Disclaimer */}
+        <div className="mt-12 mb-8 bg-white rounded-2xl shadow-lg p-6 border-2 border-gray-200">
+          <div className="flex items-start space-x-3">
+            <span className="text-2xl">ℹ️</span>
+            <div className="flex-1">
+              <p className="text-sm text-gray-700 leading-relaxed">
+                <span className="font-bold">Disclaimer:</span> This credit tracker is an independent student project and is not officially affiliated with, endorsed by, or created by Lynbrook High School or the Fremont Union High School District. While we strive for accuracy based on official course guides, please verify all graduation requirements with your school counselor. Use this tool as a planning aid only, not as official documentation.
+              </p>
+              <p className="text-xs text-gray-500 mt-2">
+                For official information, visit{" "}
+                <a
+                  href="https://lhs.fuhsd.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  lhs.fuhsd.org
+                </a>
+                {" "}or contact your school counselor.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   );
