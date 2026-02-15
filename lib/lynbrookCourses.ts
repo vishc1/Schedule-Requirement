@@ -6,12 +6,13 @@
  * - Semester course = 5 credits
  * - Full year course = 10 credits
  * - Team sport per season = 5 credits
+ * - College/Dual Enrollment = 0 credits (don't count toward HS graduation)
  */
 
 export interface LynbrookCourse {
   code?: string;
   name: string;
-  credits: 5 | 10;
+  credits: 0 | 5 | 10;
   category: string;
   ucCsuRequirement?: string;
   aliases?: string[]; // Common abbreviations and variations
@@ -203,24 +204,24 @@ export const LYNBROOK_COURSES: LynbrookCourse[] = [
   },
   {
     name: "Multivariable Calculus",
-    credits: 10,
-    category: "Math",
+    credits: 0,
+    category: "Other",
     ucCsuRequirement: "c",
-    aliases: ["Multi-Variable Calc", "Multivariable", "Multi Calc"]
+    aliases: ["Multi-Variable Calc", "Multivariable", "Multi Calc", "Dual: Multivariable Calc"]
   },
   {
     name: "Linear Algebra",
-    credits: 10,
-    category: "Math",
+    credits: 0,
+    category: "Other",
     ucCsuRequirement: "c",
     aliases: ["Linear Alg", "Dual: Linear Alg", "Dual Enrollment Linear Algebra"]
   },
   {
     name: "Differential Equations",
-    credits: 5,
-    category: "Math",
+    credits: 0,
+    category: "Other",
     ucCsuRequirement: "c",
-    aliases: ["Diff Eq", "Differential Eq"]
+    aliases: ["Diff Eq", "Differential Eq", "Dual: Differential Equations"]
   },
 
   // ========== SCIENCE (20 credits required) ==========
