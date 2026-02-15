@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import ImageUpload from "@/components/ImageUpload";
 import ResultsTable from "@/components/ResultsTable";
 import RequirementsDisplay from "@/components/RequirementsDisplay";
+import CourseSchedulePrintable from "@/components/CourseSchedulePrintable";
 import { RequirementsProgress } from "@/lib/requirementsTracker";
 
 export interface Course {
@@ -27,6 +28,7 @@ export default function Home() {
   const [requirements, setRequirements] = useState<ApiResponse["requirements"] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<"overview" | "printable">("overview");
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const handleUploadComplete = (data: ApiResponse) => {
@@ -144,43 +146,89 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Requirements Tracker */}
-            {requirements && (
-              <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
-                <div className="mb-8">
-                  <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-blue-100 to-purple-100 px-6 py-3 rounded-full mb-4">
-                    <span className="text-3xl">📊</span>
-                    <h2 className="text-2xl font-black text-gray-900">
-                      Requirements Progress
-                    </h2>
+            {/* View Tabs */}
+            <div className="bg-white rounded-2xl shadow-lg p-2 border-2 border-gray-100">
+              <nav className="flex space-x-2" aria-label="View Tabs">
+                <button
+                  onClick={() => setActiveView("overview")}
+                  className={`
+                    flex-1 px-6 py-4 text-base font-bold rounded-xl transition-all duration-300 transform flex items-center justify-center space-x-2
+                    ${
+                      activeView === "overview"
+                        ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg scale-105"
+                        : "text-gray-600 hover:bg-gray-100 hover:shadow-md"
+                    }
+                  `}
+                >
+                  <span className="text-2xl">📊</span>
+                  <span>Overview & Requirements</span>
+                </button>
+                <button
+                  onClick={() => setActiveView("printable")}
+                  className={`
+                    flex-1 px-6 py-4 text-base font-bold rounded-xl transition-all duration-300 transform flex items-center justify-center space-x-2
+                    ${
+                      activeView === "printable"
+                        ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg scale-105"
+                        : "text-gray-600 hover:bg-gray-100 hover:shadow-md"
+                    }
+                  `}
+                >
+                  <span className="text-2xl">🖨️</span>
+                  <span>Printable Schedule</span>
+                </button>
+              </nav>
+            </div>
+
+            {/* Overview Tab Content */}
+            {activeView === "overview" && (
+              <>
+                {/* Requirements Tracker */}
+                {requirements && (
+                  <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
+                    <div className="mb-8">
+                      <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-blue-100 to-purple-100 px-6 py-3 rounded-full mb-4">
+                        <span className="text-3xl">📊</span>
+                        <h2 className="text-2xl font-black text-gray-900">
+                          Requirements Progress
+                        </h2>
+                      </div>
+                      <p className="text-lg text-gray-600 ml-1">
+                        Track your progress toward all graduation requirements
+                      </p>
+                    </div>
+                    <RequirementsDisplay
+                      lynbrook={requirements.lynbrook}
+                      uc={requirements.uc}
+                      csu={requirements.csu}
+                    />
                   </div>
-                  <p className="text-lg text-gray-600 ml-1">
-                    Track your progress toward all graduation requirements
-                  </p>
+                )}
+
+                {/* Course List */}
+                <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
+                  <div className="mb-8">
+                    <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-indigo-100 to-purple-100 px-6 py-3 rounded-full mb-4">
+                      <span className="text-3xl">📚</span>
+                      <h2 className="text-2xl font-black text-gray-900">
+                        Extracted Courses
+                      </h2>
+                    </div>
+                    <p className="text-lg text-gray-600 ml-1">
+                      All courses identified from your planning sheet
+                    </p>
+                  </div>
+                  <ResultsTable courses={courses} />
                 </div>
-                <RequirementsDisplay
-                  lynbrook={requirements.lynbrook}
-                  uc={requirements.uc}
-                  csu={requirements.csu}
-                />
-              </div>
+              </>
             )}
 
-            {/* Course List */}
-            <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
-              <div className="mb-8">
-                <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-indigo-100 to-purple-100 px-6 py-3 rounded-full mb-4">
-                  <span className="text-3xl">📚</span>
-                  <h2 className="text-2xl font-black text-gray-900">
-                    Extracted Courses
-                  </h2>
-                </div>
-                <p className="text-lg text-gray-600 ml-1">
-                  All courses identified from your planning sheet
-                </p>
+            {/* Printable Tab Content */}
+            {activeView === "printable" && (
+              <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
+                <CourseSchedulePrintable courses={courses} />
               </div>
-              <ResultsTable courses={courses} />
-            </div>
+            )}
           </div>
         )}
       </div>
