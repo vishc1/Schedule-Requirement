@@ -9,7 +9,7 @@ interface ResultsTableProps {
 }
 
 export default function ResultsTable({ courses }: ResultsTableProps) {
-  const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const totalCredits = courses.reduce((sum, course) => sum + course.credits, 0);
   const graduationRequirement = 220;
   const creditsRemaining = Math.max(0, graduationRequirement - totalCredits);
@@ -18,7 +18,15 @@ export default function ResultsTable({ courses }: ResultsTableProps) {
   const subjectBreakdown = categorizeCourses(courses);
 
   const toggleSubject = (subjectName: string) => {
-    setExpandedSubject(expandedSubject === subjectName ? null : subjectName);
+    setExpandedSubjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(subjectName)) {
+        newSet.delete(subjectName);
+      } else {
+        newSet.add(subjectName);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -84,7 +92,7 @@ export default function ResultsTable({ courses }: ResultsTableProps) {
               {subjectBreakdown.map((subject, index) => {
                 const isComplete = subject.earned >= subject.required;
                 const progress = Math.min(100, (subject.earned / subject.required) * 100);
-                const isExpanded = expandedSubject === subject.name;
+                const isExpanded = expandedSubjects.has(subject.name);
 
                 return (
                   <React.Fragment key={index}>

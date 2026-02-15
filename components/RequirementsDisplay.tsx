@@ -15,12 +15,20 @@ export default function RequirementsDisplay({
   csu,
 }: RequirementsDisplayProps) {
   const [activeTab, setActiveTab] = useState<"lynbrook" | "uc" | "csu">("lynbrook");
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const activeRequirements = activeTab === "lynbrook" ? lynbrook : activeTab === "uc" ? uc : csu;
 
   const toggleCategory = (categoryName: string) => {
-    setExpandedCategory(expandedCategory === categoryName ? null : categoryName);
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryName)) {
+        newSet.delete(categoryName);
+      } else {
+        newSet.add(categoryName);
+      }
+      return newSet;
+    });
   };
 
   const renderProgressBar = (earned: number, required: number | string) => {
@@ -235,7 +243,7 @@ export default function RequirementsDisplay({
           <tbody className="bg-white divide-y divide-gray-200">
             {activeRequirements.categories.map((category, index) => {
               const isComplete = category.earned >= category.required;
-              const isExpanded = expandedCategory === category.name;
+              const isExpanded = expandedCategories.has(category.name);
 
               return (
                 <React.Fragment key={index}>
