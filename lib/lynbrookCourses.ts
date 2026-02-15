@@ -217,7 +217,7 @@ export const LYNBROOK_COURSES: LynbrookCourse[] = [
   },
   {
     name: "Differential Equations",
-    credits: 10,
+    credits: 5,
     category: "Math",
     ucCsuRequirement: "c",
     aliases: ["Diff Eq", "Differential Eq"]
