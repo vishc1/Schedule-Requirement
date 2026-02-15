@@ -130,6 +130,49 @@ export default function FourYearPlanTable({ courses }: FourYearPlanTableProps) {
     return GRADES.reduce((sum, grade) => sum + calculateGradeTotal(grade), 0);
   };
 
+  // Detect duplicate courses across all grades
+  const detectDuplicates = (): { course: string; locations: string[] }[] => {
+    const courseLocations: Record<string, string[]> = {};
+
+    GRADES.forEach(grade => {
+      SUBJECT_AREAS.forEach(subject => {
+        const course = assignments[grade][subject];
+        if (course) {
+          const key = course.course;
+          if (!courseLocations[key]) {
+            courseLocations[key] = [];
+          }
+          courseLocations[key].push(`${grade} - ${subject}`);
+        }
+      });
+    });
+
+    return Object.entries(courseLocations)
+      .filter(([_, locations]) => locations.length > 1)
+      .map(([course, locations]) => ({ course, locations }));
+  };
+
+  // Check if a specific cell contains a duplicate course
+  const isDuplicateCourse = (grade: string, subject: string): boolean => {
+    const course = assignments[grade][subject];
+    if (!course) return false;
+
+    let count = 0;
+    GRADES.forEach(g => {
+      SUBJECT_AREAS.forEach(s => {
+        const c = assignments[g][s];
+        if (c && c.course === course.course) {
+          count++;
+        }
+      });
+    });
+
+    return count > 1;
+  };
+
+  const duplicates = detectDuplicates();
+  const hasDuplicates = duplicates.length > 0;
+
   const handlePrint = () => {
     window.print();
   };
@@ -200,6 +243,40 @@ export default function FourYearPlanTable({ courses }: FourYearPlanTableProps) {
         </div>
       </div>
 
+      {/* Duplicate Warning Banner */}
+      {hasDuplicates && (
+        <div className="print:hidden bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 rounded-xl p-6 shadow-lg animate-shake">
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-xl text-red-900 mb-2">⚠️ Duplicate Courses Detected!</p>
+              <p className="text-base text-red-800 mb-3">
+                The following courses appear multiple times in your plan:
+              </p>
+              <div className="bg-red-100 rounded-lg p-4 border border-red-200 space-y-2">
+                {duplicates.map(dup => (
+                  <div key={dup.course} className="text-sm">
+                    <p className="font-bold text-red-900">{dup.course}</p>
+                    <p className="text-red-700 text-xs ml-4">
+                      Found in: {dup.locations.join(", ")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-red-700 mt-3">
+                💡 <strong>Tip:</strong> Each course should only appear once. Click on duplicate cells to reassign or clear them.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Print Header */}
       <div className="hidden print:block mb-6 pb-4 border-b-2 border-gray-300">
         <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
@@ -238,9 +315,14 @@ export default function FourYearPlanTable({ courses }: FourYearPlanTableProps) {
                   const course = assignments[grade][subject];
                   const isEditing = editingCell?.grade === grade && editingCell?.subject === subject;
                   const availableCourses = getAvailableCourses(grade, subject);
+                  const isDuplicate = isDuplicateCourse(grade, subject);
 
                   return (
-                    <td key={grade} className="border-2 border-gray-300 px-2 py-2 text-sm relative group">
+                    <td key={grade} className={`border-2 px-2 py-2 text-sm relative group ${
+                      isDuplicate
+                        ? "border-red-500 bg-red-50 print:bg-white print:border-gray-300"
+                        : "border-gray-300"
+                    }`}>
                       {isEditing ? (
                         <div className="absolute z-10 top-0 left-0 w-full bg-white border-2 border-blue-500 shadow-xl rounded-lg p-2 max-h-48 overflow-y-auto">
                           <div className="space-y-1">
@@ -281,7 +363,10 @@ export default function FourYearPlanTable({ courses }: FourYearPlanTableProps) {
                         >
                           {course ? (
                             <div>
-                              <div className="font-medium text-gray-900">{course.course}</div>
+                              <div className="font-medium text-gray-900 flex items-center">
+                                {isDuplicate && <span className="mr-1 text-red-600 print:hidden">⚠️</span>}
+                                {course.course}
+                              </div>
                               <div className="text-xs text-gray-500 mt-1">{course.credits} credits</div>
                             </div>
                           ) : (
@@ -329,6 +414,121 @@ export default function FourYearPlanTable({ courses }: FourYearPlanTableProps) {
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6 shadow-lg">
           <p className="text-sm font-semibold opacity-90 mb-1">Remaining</p>
           <p className="text-4xl font-black">{Math.max(0, 220 - calculateGrandTotal())}</p>
+        </div>
+      </div>
+
+      {/* Credit Summary by Year */}
+      <div className="print:hidden bg-white rounded-3xl shadow-2xl p-8 border-2 border-gray-100">
+        <div className="mb-6">
+          <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-blue-100 to-purple-100 px-6 py-3 rounded-full mb-4">
+            <span className="text-3xl">📊</span>
+            <h3 className="text-2xl font-black text-gray-900">Credit Summary by Year</h3>
+          </div>
+          <p className="text-lg text-gray-600 ml-1">
+            Track your credit distribution across all four years
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          {GRADES.map((grade, index) => {
+            const gradeCredits = calculateGradeTotal(grade);
+            const expectedAverage = 55; // 220 / 4
+            const percentage = (gradeCredits / expectedAverage) * 100;
+            const isOnTrack = gradeCredits >= expectedAverage * 0.9; // Within 90% is "on track"
+            const isAhead = gradeCredits > expectedAverage;
+
+            // Color scheme based on progress
+            let colorClasses = "";
+            let statusIcon = "";
+            let statusText = "";
+
+            if (gradeCredits === 0) {
+              colorClasses = "bg-gray-200";
+              statusIcon = "⚪";
+              statusText = "Not started";
+            } else if (isAhead) {
+              colorClasses = "bg-gradient-to-r from-green-500 to-emerald-600";
+              statusIcon = "🟢";
+              statusText = "Ahead of pace";
+            } else if (isOnTrack) {
+              colorClasses = "bg-gradient-to-r from-blue-500 to-indigo-600";
+              statusIcon = "🔵";
+              statusText = "On track";
+            } else {
+              colorClasses = "bg-gradient-to-r from-yellow-500 to-orange-600";
+              statusIcon = "🟡";
+              statusText = "Below average";
+            }
+
+            return (
+              <div key={grade} className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <h4 className="text-xl font-bold text-gray-900">{grade}</h4>
+                    <span className="text-sm">{statusIcon}</span>
+                    <span className="text-sm font-semibold text-gray-600">{statusText}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-black text-gray-900">{gradeCredits}</p>
+                    <p className="text-xs text-gray-500">credits</p>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="relative">
+                  <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                    <div
+                      className={`h-full ${colorClasses} transition-all duration-500 flex items-center justify-end px-2`}
+                      style={{ width: `${Math.min(percentage, 100)}%` }}
+                    >
+                      {gradeCredits > 0 && (
+                        <span className="text-xs font-bold text-white drop-shadow">
+                          {percentage.toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Average marker */}
+                  <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                    <span>0 credits</span>
+                    <span className="font-semibold text-gray-700">Avg: {expectedAverage} credits</span>
+                    <span>Max: ~70 credits</span>
+                  </div>
+                </div>
+
+                {/* Credits vs Average */}
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-gray-600">
+                    {gradeCredits >= expectedAverage
+                      ? `+${gradeCredits - expectedAverage} above average`
+                      : `${expectedAverage - gradeCredits} below average`}
+                  </span>
+                  <span className="font-semibold text-gray-700">
+                    {gradeCredits} / {expectedAverage} credits
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Overall Analysis */}
+        <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border-2 border-blue-200">
+          <div className="flex items-start space-x-3">
+            <span className="text-2xl">📈</span>
+            <div className="flex-1">
+              <p className="font-bold text-base text-blue-900 mb-2">Credit Distribution Analysis</p>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• <strong>Total Credits:</strong> {calculateGrandTotal()} / 220 required</li>
+                <li>• <strong>Average per Year:</strong> {(calculateGrandTotal() / 4).toFixed(1)} credits (expected: 55)</li>
+                <li>• <strong>Progress:</strong> {((calculateGrandTotal() / 220) * 100).toFixed(1)}% toward graduation</li>
+                <li className="text-xs text-blue-600 mt-2">
+                  💡 Aim for ~55 credits per year to stay on track for graduation
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 
