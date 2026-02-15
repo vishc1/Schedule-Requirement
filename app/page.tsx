@@ -5,6 +5,7 @@ import ImageUpload from "@/components/ImageUpload";
 import ResultsTable from "@/components/ResultsTable";
 import RequirementsDisplay from "@/components/RequirementsDisplay";
 import CourseSchedulePrintable from "@/components/CourseSchedulePrintable";
+import FourYearPlanTable from "@/components/FourYearPlanTable";
 import { RequirementsProgress } from "@/lib/requirementsTracker";
 
 export interface Course {
@@ -28,7 +29,7 @@ export default function Home() {
   const [requirements, setRequirements] = useState<ApiResponse["requirements"] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"overview" | "printable">("overview");
+  const [activeView, setActiveView] = useState<"overview" | "printable" | "planner">("overview");
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const handleUploadComplete = (data: ApiResponse) => {
@@ -152,7 +153,7 @@ export default function Home() {
                 <button
                   onClick={() => setActiveView("overview")}
                   className={`
-                    flex-1 px-6 py-4 text-base font-bold rounded-xl transition-all duration-300 transform flex items-center justify-center space-x-2
+                    flex-1 px-4 py-3 text-sm font-bold rounded-xl transition-all duration-300 transform flex items-center justify-center space-x-2
                     ${
                       activeView === "overview"
                         ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg scale-105"
@@ -160,13 +161,27 @@ export default function Home() {
                     }
                   `}
                 >
-                  <span className="text-2xl">📊</span>
-                  <span>Overview & Requirements</span>
+                  <span className="text-xl">📊</span>
+                  <span className="hidden sm:inline">Overview</span>
+                </button>
+                <button
+                  onClick={() => setActiveView("planner")}
+                  className={`
+                    flex-1 px-4 py-3 text-sm font-bold rounded-xl transition-all duration-300 transform flex items-center justify-center space-x-2
+                    ${
+                      activeView === "planner"
+                        ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg scale-105"
+                        : "text-gray-600 hover:bg-gray-100 hover:shadow-md"
+                    }
+                  `}
+                >
+                  <span className="text-xl">📅</span>
+                  <span className="hidden sm:inline">4-Year Planner</span>
                 </button>
                 <button
                   onClick={() => setActiveView("printable")}
                   className={`
-                    flex-1 px-6 py-4 text-base font-bold rounded-xl transition-all duration-300 transform flex items-center justify-center space-x-2
+                    flex-1 px-4 py-3 text-sm font-bold rounded-xl transition-all duration-300 transform flex items-center justify-center space-x-2
                     ${
                       activeView === "printable"
                         ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg scale-105"
@@ -174,8 +189,8 @@ export default function Home() {
                     }
                   `}
                 >
-                  <span className="text-2xl">🖨️</span>
-                  <span>Printable Schedule</span>
+                  <span className="text-xl">🖨️</span>
+                  <span className="hidden sm:inline">By Category</span>
                 </button>
               </nav>
             </div>
@@ -221,6 +236,13 @@ export default function Home() {
                   <ResultsTable courses={courses} />
                 </div>
               </>
+            )}
+
+            {/* 4-Year Planner Tab Content */}
+            {activeView === "planner" && (
+              <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
+                <FourYearPlanTable courses={courses} />
+              </div>
             )}
 
             {/* Printable Tab Content */}
