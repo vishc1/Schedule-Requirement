@@ -38,16 +38,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Optimize image size to reduce API costs
+    // Optimize image size to reduce API costs and ensure reliability
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
-    // Limit image size to reduce costs (OpenAI charges per token, larger images = more tokens)
-    const maxSize = 20 * 1024 * 1024; // 20MB limit
+
+    // Limit image size (5MB for optimal performance on Vercel free tier)
+    const maxSize = 5 * 1024 * 1024; // 5MB limit
     if (buffer.length > maxSize) {
       return NextResponse.json(
-        { error: "Image file is too large. Please upload an image under 20MB." },
-        { status: 400 }
+        { error: "Image file is too large. Please upload an image under 5MB." },
+        { status: 413 }
       );
     }
     

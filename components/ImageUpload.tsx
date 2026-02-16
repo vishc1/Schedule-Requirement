@@ -58,9 +58,9 @@ export default function ImageUpload({
       return;
     }
 
-    // Check file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      onUploadError("Image file is too large. Please upload an image under 10MB.");
+    // Check file size (5MB limit for better performance and reliability)
+    if (file.size > 5 * 1024 * 1024) {
+      onUploadError("Image file is too large. Please upload an image under 5MB.");
       return;
     }
 
@@ -84,8 +84,20 @@ export default function ImageUpload({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to process image");
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to process image");
+        } else {
+          // Non-JSON error (possibly from Vercel/server)
+          const errorText = await response.text();
+          if (response.status === 413 || errorText.includes("Request") || errorText.includes("too large")) {
+            throw new Error("Image file is too large. Please upload an image under 5MB.");
+          } else {
+            throw new Error(`Server error: ${errorText.substring(0, 100)}`);
+          }
+        }
       }
 
       const data: ApiResponse = await response.json();
