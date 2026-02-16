@@ -52,29 +52,98 @@ export default function ImageUpload({
     }
   }, [loading]);
 
+  // Compress image to fit Vercel's 4.5MB request limit
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          if (!ctx) {
+            resolve(file); // Fallback if canvas not supported
+            return;
+          }
+
+          // Resize if too large (max 1920px on longest side)
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 1920;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height / width) * maxDimension;
+              width = maxDimension;
+            } else {
+              width = (width / height) * maxDimension;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to JPEG with 80% quality for smaller file size
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.80 // 80% quality - good balance between size and readability
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       onUploadError("Please upload a valid image file (PNG, JPG, or GIF)");
       return;
     }
 
-    // Check file size (5MB limit for better performance and reliability)
-    if (file.size > 5 * 1024 * 1024) {
-      onUploadError("Image file is too large. Please upload an image under 5MB.");
-      return;
-    }
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    setFileName(file.name);
-
-    onUploadStart();
-
     try {
+      // Compress the image to fit within Vercel's limits
+      const compressedFile = await compressImage(file);
+
+      // Check compressed file size (target 3MB max to ensure it fits with overhead)
+      const maxSize = 3 * 1024 * 1024; // 3MB
+      if (compressedFile.size > maxSize) {
+        onUploadError(
+          `Image is too large (${(compressedFile.size / 1024 / 1024).toFixed(1)}MB after compression). ` +
+          "Please use a smaller or lower resolution image."
+        );
+        return;
+      }
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(compressedFile);
+      setFileName(file.name);
+
+      // Use compressed file for upload
+      file = compressedFile;
+
+      onUploadStart();
+
       const formData = new FormData();
       formData.append("image", file);
 
@@ -92,8 +161,8 @@ export default function ImageUpload({
         } else {
           // Non-JSON error (possibly from Vercel/server)
           const errorText = await response.text();
-          if (response.status === 413 || errorText.includes("Request") || errorText.includes("too large")) {
-            throw new Error("Image file is too large. Please upload an image under 5MB.");
+          if (response.status === 413 || errorText.includes("PAYLOAD") || errorText.includes("too large")) {
+            throw new Error("Image file is too large for Vercel. Please use a smaller image.");
           } else {
             throw new Error(`Server error: ${errorText.substring(0, 100)}`);
           }
@@ -208,7 +277,7 @@ export default function ImageUpload({
               Click here or drag and drop your schedule image
             </p>
             <p className="text-sm text-gray-500">
-              Supports PNG, JPG, GIF (max 10MB)
+              Supports PNG, JPG, GIF • Auto-compressed for optimal upload
             </p>
           </div>
         </div>
