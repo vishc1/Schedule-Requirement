@@ -100,6 +100,13 @@ export default function ImageUpload({
         }
       }
 
+      // Check Content-Type even for successful responses
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        throw new Error(`Server returned non-JSON response: ${textResponse.substring(0, 100)}`);
+      }
+
       const data: ApiResponse = await response.json();
       onUploadComplete(data);
     } catch (error) {
