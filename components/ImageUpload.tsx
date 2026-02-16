@@ -118,15 +118,23 @@ export default function ImageUpload({
     }
 
     try {
+      // Show original size for debugging
+      const originalSizeMB = (file.size / 1024 / 1024).toFixed(2);
+      console.log(`Original file size: ${originalSizeMB}MB`);
+
       // Compress the image to fit within Vercel's limits
       const compressedFile = await compressImage(file);
+
+      // Show compressed size for debugging
+      const compressedSizeMB = (compressedFile.size / 1024 / 1024).toFixed(2);
+      console.log(`Compressed file size: ${compressedSizeMB}MB`);
 
       // Check compressed file size (target 2MB max to ensure it fits with overhead)
       const maxSize = 2 * 1024 * 1024; // 2MB - conservative limit for Vercel
       if (compressedFile.size > maxSize) {
         onUploadError(
-          `Image is too large (${(compressedFile.size / 1024 / 1024).toFixed(1)}MB after compression). ` +
-          "Please use a smaller or lower resolution image."
+          `Image is too large (${compressedSizeMB}MB after compression). ` +
+          `Original: ${originalSizeMB}MB. Please use a smaller or lower resolution image.`
         );
         return;
       }
@@ -137,7 +145,7 @@ export default function ImageUpload({
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(compressedFile);
-      setFileName(file.name);
+      setFileName(`${file.name} (compressed: ${compressedSizeMB}MB)`);
 
       // Use compressed file for upload
       file = compressedFile;
