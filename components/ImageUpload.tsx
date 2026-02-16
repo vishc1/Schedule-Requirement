@@ -67,10 +67,10 @@ export default function ImageUpload({
             return;
           }
 
-          // Resize if too large (max 1920px on longest side)
+          // Aggressively resize to fit Vercel limits (max 1280px)
           let width = img.width;
           let height = img.height;
-          const maxDimension = 1920;
+          const maxDimension = 1280; // Smaller dimension for guaranteed fit
 
           if (width > maxDimension || height > maxDimension) {
             if (width > height) {
@@ -86,7 +86,7 @@ export default function ImageUpload({
           canvas.height = height;
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Convert to JPEG with 80% quality for smaller file size
+          // Convert to JPEG with 60% quality for much smaller file size
           canvas.toBlob(
             (blob) => {
               if (blob) {
@@ -100,7 +100,7 @@ export default function ImageUpload({
               }
             },
             'image/jpeg',
-            0.80 // 80% quality - good balance between size and readability
+            0.60 // 60% quality - still readable for OCR, much smaller file
           );
         };
         img.onerror = () => resolve(file);
@@ -121,8 +121,8 @@ export default function ImageUpload({
       // Compress the image to fit within Vercel's limits
       const compressedFile = await compressImage(file);
 
-      // Check compressed file size (target 3MB max to ensure it fits with overhead)
-      const maxSize = 3 * 1024 * 1024; // 3MB
+      // Check compressed file size (target 2MB max to ensure it fits with overhead)
+      const maxSize = 2 * 1024 * 1024; // 2MB - conservative limit for Vercel
       if (compressedFile.size > maxSize) {
         onUploadError(
           `Image is too large (${(compressedFile.size / 1024 / 1024).toFixed(1)}MB after compression). ` +
