@@ -152,12 +152,26 @@ export default function ImageUpload({
 
       onUploadStart();
 
-      const formData = new FormData();
-      formData.append("image", file);
+      // Convert to base64 for direct API upload (bypasses Vercel FormData limits)
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = (reader.result as string).split(',')[1];
+          resolve(base64String);
+        };
+        reader.readAsDataURL(file);
+      });
 
+      // Send base64 directly to our API
       const response = await fetch("/api/process-image", {
         method: "POST",
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: base64,
+          filename: file.name
+        }),
       });
 
       if (!response.ok) {
