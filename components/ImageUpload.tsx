@@ -152,25 +152,33 @@ export default function ImageUpload({
 
       onUploadStart();
 
-      // Convert to base64 for direct API upload (bypasses Vercel FormData limits)
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = (reader.result as string).split(',')[1];
-          resolve(base64String);
-        };
-        reader.readAsDataURL(file);
+      // Step 1: Upload to ImgBB (completely bypasses Vercel upload limits!)
+      const imgbbFormData = new FormData();
+      imgbbFormData.append('image', file);
+
+      console.log('☁️ Uploading to cloud storage...');
+      const imgbbResponse = await fetch('https://api.imgbb.com/1/upload?key=d4b8e0c9f6db90be67e9ec8c8b4e8f8a', {
+        method: 'POST',
+        body: imgbbFormData,
       });
 
-      // Send base64 directly to our API
+      if (!imgbbResponse.ok) {
+        throw new Error('Failed to upload image to cloud storage. Please try again.');
+      }
+
+      const imgbbData = await imgbbResponse.json();
+      const imageUrl = imgbbData.data.url;
+
+      console.log('✅ Cloud upload complete! Processing courses...');
+
+      // Step 2: Send just the image URL to our API (super tiny payload!)
       const response = await fetch("/api/process-image", {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          image: base64,
-          filename: file.name
+          imageUrl: imageUrl,
         }),
       });
 

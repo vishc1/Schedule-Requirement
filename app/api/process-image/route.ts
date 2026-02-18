@@ -30,57 +30,35 @@ export async function POST(request: NextRequest) {
     let base64Image: string;
     let mimeType: string = "image/jpeg";
 
-    // Check if request is JSON (base64) or FormData
-    const contentType = request.headers.get("content-type") || "";
+    // Get request body
+    const body = await request.json();
 
-    if (contentType.includes("application/json")) {
-      // Handle base64 JSON upload (bypasses Vercel FormData limits)
-      const body = await request.json();
+    if (body.imageUrl) {
+      // Fetch image from cloud storage URL (bypasses ALL Vercel upload limits!)
+      console.log("📥 Fetching image from cloud storage...");
 
-      if (!body.image) {
+      const imageResponse = await fetch(body.imageUrl);
+      if (!imageResponse.ok) {
         return NextResponse.json(
-          { error: "No image data provided" },
-          { status: 400 }
+          { error: "Failed to fetch image from cloud storage" },
+          { status: 500 }
         );
       }
 
+      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      base64Image = imageBuffer.toString("base64");
+      mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
+
+      console.log("✅ Image fetched successfully!");
+    } else if (body.image) {
+      // Handle base64 direct upload (fallback for backward compatibility)
       base64Image = body.image;
-      mimeType = "image/jpeg"; // Compressed images are always JPEG
-
-      // Validate base64 size (should be under 3MB after compression)
-      const sizeInBytes = (base64Image.length * 3) / 4;
-      const maxSize = 3 * 1024 * 1024; // 3MB limit
-      if (sizeInBytes > maxSize) {
-        return NextResponse.json(
-          { error: "Image file is too large. Please upload an image under 3MB." },
-          { status: 413 }
-        );
-      }
+      mimeType = "image/jpeg";
     } else {
-      // Handle traditional FormData upload (legacy support)
-      const formData = await request.formData();
-      const imageFile = formData.get("image") as File;
-
-      if (!imageFile) {
-        return NextResponse.json(
-          { error: "No image file provided" },
-          { status: 400 }
-        );
-      }
-
-      const bytes = await imageFile.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const maxSize = 3 * 1024 * 1024; // 3MB limit
-      if (buffer.length > maxSize) {
-        return NextResponse.json(
-          { error: "Image file is too large. Please upload an image under 3MB." },
-          { status: 413 }
-        );
-      }
-
-      base64Image = buffer.toString("base64");
-      mimeType = imageFile.type || "image/jpeg";
+      return NextResponse.json(
+        { error: "No image data or URL provided" },
+        { status: 400 }
+      );
     }
 
     // ========== PASS 1: RAW TABLE EXTRACTION ==========
