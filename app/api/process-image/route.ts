@@ -27,18 +27,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get base64 image from JSON body
-    const body = await request.json();
+    // Get the form data
+    const formData = await request.formData();
+    const imageFile = formData.get("image") as File;
 
-    if (!body.image) {
+    if (!imageFile) {
       return NextResponse.json(
-        { error: "No image data provided" },
+        { error: "No image file provided" },
         { status: 400 }
       );
     }
 
-    const base64Image = body.image;
-    const mimeType = "image/jpeg";
+    // Convert to buffer and base64
+    const bytes = await imageFile.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64Image = buffer.toString("base64");
+    const mimeType = imageFile.type || "image/jpeg";
 
     // ========== PASS 1: RAW TABLE EXTRACTION ==========
     console.log("🔍 PASS 1: Extracting raw table structure...");
