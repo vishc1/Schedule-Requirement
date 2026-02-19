@@ -52,35 +52,103 @@ export default function ImageUpload({
     }
   }, [loading]);
 
+  // Ultra-aggressive compression for Vercel
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+
+          // Resize to max 1024px
+          let width = img.width;
+          let height = img.height;
+          const maxDimension = 1024;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height / width) * maxDimension;
+              width = maxDimension;
+            } else {
+              width = (width / height) * maxDimension;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 50% quality JPEG
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                }));
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.50
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       onUploadError("Please upload a valid image file (PNG, JPG, or GIF)");
       return;
     }
 
-    // Check file size
-    if (file.size > 10 * 1024 * 1024) {
-      onUploadError("Image file is too large. Please upload an image under 10MB.");
-      return;
-    }
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    setFileName(file.name);
-
-    onUploadStart();
-
     try {
-      const formData = new FormData();
-      formData.append("image", file);
+      // Compress image
+      const compressedFile = await compressImage(file);
+
+      // Check size (must be under 1MB)
+      if (compressedFile.size > 1 * 1024 * 1024) {
+        onUploadError("Image is too large even after compression. Please use a smaller image.");
+        return;
+      }
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(compressedFile);
+      setFileName(file.name);
+
+      onUploadStart();
+
+      // Convert to base64 and send as JSON
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve((reader.result as string).split(',')[1]);
+        };
+        reader.readAsDataURL(compressedFile);
+      });
 
       const response = await fetch("/api/process-image", {
         method: "POST",
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
       });
 
       if (!response.ok) {
