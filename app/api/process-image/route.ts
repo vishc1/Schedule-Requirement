@@ -27,39 +27,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let base64Image: string;
-    let mimeType: string = "image/jpeg";
+    // Get the form data
+    const formData = await request.formData();
+    const imageFile = formData.get("image") as File;
 
-    // Get request body
-    const body = await request.json();
-
-    if (body.imageUrl) {
-      // Fetch image from cloud storage URL (bypasses ALL Vercel upload limits!)
-      console.log("📥 Fetching image from cloud storage...");
-
-      const imageResponse = await fetch(body.imageUrl);
-      if (!imageResponse.ok) {
-        return NextResponse.json(
-          { error: "Failed to fetch image from cloud storage" },
-          { status: 500 }
-        );
-      }
-
-      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-      base64Image = imageBuffer.toString("base64");
-      mimeType = imageResponse.headers.get("content-type") || "image/jpeg";
-
-      console.log("✅ Image fetched successfully!");
-    } else if (body.image) {
-      // Handle base64 direct upload (fallback for backward compatibility)
-      base64Image = body.image;
-      mimeType = "image/jpeg";
-    } else {
+    if (!imageFile) {
       return NextResponse.json(
-        { error: "No image data or URL provided" },
+        { error: "No image file provided" },
         { status: 400 }
       );
     }
+
+    // Convert to buffer and base64
+    const bytes = await imageFile.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64Image = buffer.toString("base64");
+    const mimeType = imageFile.type || "image/jpeg";
 
     // ========== PASS 1: RAW TABLE EXTRACTION ==========
     console.log("🔍 PASS 1: Extracting raw table structure...");

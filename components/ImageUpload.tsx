@@ -52,134 +52,35 @@ export default function ImageUpload({
     }
   }, [loading]);
 
-  // Compress image to fit Vercel's 4.5MB request limit
-  const compressImage = (file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-
-          if (!ctx) {
-            resolve(file); // Fallback if canvas not supported
-            return;
-          }
-
-          // Aggressively resize to fit Vercel limits (max 1280px)
-          let width = img.width;
-          let height = img.height;
-          const maxDimension = 1280; // Smaller dimension for guaranteed fit
-
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = (height / width) * maxDimension;
-              width = maxDimension;
-            } else {
-              width = (width / height) * maxDimension;
-              height = maxDimension;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Convert to JPEG with 60% quality for much smaller file size
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const compressedFile = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                });
-                resolve(compressedFile);
-              } else {
-                resolve(file);
-              }
-            },
-            'image/jpeg',
-            0.60 // 60% quality - still readable for OCR, much smaller file
-          );
-        };
-        img.onerror = () => resolve(file);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => resolve(file);
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       onUploadError("Please upload a valid image file (PNG, JPG, or GIF)");
       return;
     }
 
+    // Check file size
+    if (file.size > 10 * 1024 * 1024) {
+      onUploadError("Image file is too large. Please upload an image under 10MB.");
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setFileName(file.name);
+
+    onUploadStart();
+
     try {
-      // Show original size for debugging
-      const originalSizeMB = (file.size / 1024 / 1024).toFixed(2);
-      console.log(`Original file size: ${originalSizeMB}MB`);
+      const formData = new FormData();
+      formData.append("image", file);
 
-      // Compress the image to fit within Vercel's limits
-      const compressedFile = await compressImage(file);
-
-      // Show compressed size for debugging
-      const compressedSizeMB = (compressedFile.size / 1024 / 1024).toFixed(2);
-      console.log(`Compressed file size: ${compressedSizeMB}MB`);
-
-      // Check compressed file size (target 2MB max to ensure it fits with overhead)
-      const maxSize = 2 * 1024 * 1024; // 2MB - conservative limit for Vercel
-      if (compressedFile.size > maxSize) {
-        onUploadError(
-          `Image is too large (${compressedSizeMB}MB after compression). ` +
-          `Original: ${originalSizeMB}MB. Please use a smaller or lower resolution image.`
-        );
-        return;
-      }
-
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(compressedFile);
-      setFileName(`${file.name} (compressed: ${compressedSizeMB}MB)`);
-
-      // Use compressed file for upload
-      file = compressedFile;
-
-      onUploadStart();
-
-      // Step 1: Upload to ImgBB (completely bypasses Vercel upload limits!)
-      const imgbbFormData = new FormData();
-      imgbbFormData.append('image', file);
-
-      console.log('☁️ Uploading to cloud storage...');
-      const imgbbResponse = await fetch('https://api.imgbb.com/1/upload?key=d4b8e0c9f6db90be67e9ec8c8b4e8f8a', {
-        method: 'POST',
-        body: imgbbFormData,
-      });
-
-      if (!imgbbResponse.ok) {
-        throw new Error('Failed to upload image to cloud storage. Please try again.');
-      }
-
-      const imgbbData = await imgbbResponse.json();
-      const imageUrl = imgbbData.data.url;
-
-      console.log('✅ Cloud upload complete! Processing courses...');
-
-      // Step 2: Send just the image URL to our API (super tiny payload!)
       const response = await fetch("/api/process-image", {
         method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          imageUrl: imageUrl,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -307,7 +208,7 @@ export default function ImageUpload({
               Click here or drag and drop your schedule image
             </p>
             <p className="text-sm text-gray-500">
-              Supports PNG, JPG, GIF • Auto-compressed for optimal upload
+              Supports PNG, JPG, GIF (max 10MB)
             </p>
           </div>
         </div>
