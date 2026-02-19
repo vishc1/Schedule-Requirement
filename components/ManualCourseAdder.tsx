@@ -65,7 +65,7 @@ export default function ManualCourseAdder({ onAddCourse }: ManualCourseAdderProp
         <h3 className="text-xl font-bold text-gray-900">Add Course Manually</h3>
       </div>
       <p className="text-sm text-gray-600 mb-4">
-        Missed a course? Add it manually and select which year you took/will take it.
+        Missed a course? Add it manually and select which grade level you took/will take it.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -134,10 +134,10 @@ export default function ManualCourseAdder({ onAddCourse }: ManualCourseAdderProp
           )}
         </div>
 
-        {/* Year Select */}
+        {/* Grade Select */}
         <div className="sm:w-40">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Grade Year
+            Grade Level
           </label>
           <select
             value={selectedYear}
@@ -173,7 +173,7 @@ export default function ManualCourseAdder({ onAddCourse }: ManualCourseAdderProp
       {selectedCourse && (
         <div className="mt-4 p-3 bg-blue-100 rounded-lg border border-blue-300">
           <p className="text-sm text-blue-900">
-            <span className="font-bold">Ready to add:</span> {selectedCourse} ({selectedYear}th Grade)
+            <span className="font-bold">Ready to add:</span> {selectedCourse} (Grade {selectedYear})
           </p>
         </div>
       )}

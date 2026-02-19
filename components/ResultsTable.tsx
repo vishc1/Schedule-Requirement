@@ -194,7 +194,7 @@ export default function ResultsTable({ courses, onRemoveCourse }: ResultsTablePr
                   Course Name
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  Year
+                  Grade
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Credits
