@@ -60,8 +60,8 @@ export function shouldIgnore(text: string): boolean {
     return true;
   }
 
-  // Ignore very generic headers
-  const genericHeaders = ["math", "science", "english", "lit/writing"];
+  // Ignore very generic headers (but NOT lit/writing - that's a valid course!)
+  const genericHeaders = ["math", "science", "english"];
   if (genericHeaders.includes(lower) && text.length < 10) {
     return true;
   }
