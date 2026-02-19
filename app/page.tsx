@@ -6,13 +6,16 @@ import ResultsTable from "@/components/ResultsTable";
 import RequirementsDisplay from "@/components/RequirementsDisplay";
 import CourseSchedulePrintable from "@/components/CourseSchedulePrintable";
 import FourYearPlanTable from "@/components/FourYearPlanTable";
-import { RequirementsProgress } from "@/lib/requirementsTracker";
+import ManualCourseAdder from "@/components/ManualCourseAdder";
+import { RequirementsProgress, calculateAllRequirements } from "@/lib/requirementsTracker";
 
 export interface Course {
   course: string;
   credits: number;
   category?: string;
   ucCsuRequirement?: string;
+  year?: 9 | 10 | 11 | 12;
+  manuallyAdded?: boolean;
 }
 
 interface ApiResponse {
@@ -55,6 +58,46 @@ export default function Home() {
     setLoading(false);
     setCourses([]);
     setRequirements(null);
+  };
+
+  const handleAddCourse = (course: Course) => {
+    // Check if course already exists
+    const courseExists = courses.some(
+      (c) => c.course === course.course && c.year === course.year
+    );
+
+    if (courseExists) {
+      alert("This course is already in your list!");
+      return;
+    }
+
+    const updatedCourses = [...courses, course];
+    setCourses(updatedCourses);
+
+    // Recalculate requirements
+    const newRequirements = calculateAllRequirements(updatedCourses);
+    setRequirements({
+      lynbrook: newRequirements.lynbrook,
+      uc: newRequirements.uc,
+      csu: newRequirements.csu,
+    });
+  };
+
+  const handleRemoveCourse = (index: number) => {
+    const updatedCourses = courses.filter((_, i) => i !== index);
+    setCourses(updatedCourses);
+
+    // Recalculate requirements
+    if (updatedCourses.length > 0) {
+      const newRequirements = calculateAllRequirements(updatedCourses);
+      setRequirements({
+        lynbrook: newRequirements.lynbrook,
+        uc: newRequirements.uc,
+        csu: newRequirements.csu,
+      });
+    } else {
+      setRequirements(null);
+    }
   };
 
   return (
@@ -220,20 +263,23 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Manual Course Adder */}
+                <ManualCourseAdder onAddCourse={handleAddCourse} />
+
                 {/* Course List */}
                 <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
                   <div className="mb-8">
                     <div className="inline-flex items-center space-x-3 bg-gradient-to-r from-indigo-100 to-purple-100 px-6 py-3 rounded-full mb-4">
                       <span className="text-3xl">📚</span>
                       <h2 className="text-2xl font-black text-gray-900">
-                        Extracted Courses
+                        Your Courses
                       </h2>
                     </div>
                     <p className="text-lg text-gray-600 ml-1">
-                      All courses identified from your planning sheet
+                      All courses from your planning sheet (auto-detected and manually added)
                     </p>
                   </div>
-                  <ResultsTable courses={courses} />
+                  <ResultsTable courses={courses} onRemoveCourse={handleRemoveCourse} />
                 </div>
               </>
             )}

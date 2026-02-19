@@ -6,9 +6,10 @@ import { categorizeCourses, SubjectRequirement } from "@/lib/subjectCategorizer"
 
 interface ResultsTableProps {
   courses: Course[];
+  onRemoveCourse?: (index: number) => void;
 }
 
-export default function ResultsTable({ courses }: ResultsTableProps) {
+export default function ResultsTable({ courses, onRemoveCourse }: ResultsTableProps) {
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
   const totalCredits = courses.reduce((sum, course) => sum + course.credits, 0);
   const graduationRequirement = 220;
@@ -193,31 +194,75 @@ export default function ResultsTable({ courses }: ResultsTableProps) {
                   Course Name
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Year
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Credits
                 </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Source
+                </th>
+                {onRemoveCourse && (
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Action
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {courses.map((course, index) => (
                 <tr
                   key={index}
-                  className="hover:bg-blue-50 transition-colors duration-150"
+                  className={`hover:bg-blue-50 transition-colors duration-150 ${
+                    course.manuallyAdded ? "bg-yellow-50" : ""
+                  }`}
                 >
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     {course.course}
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {course.year ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                        {course.year}th
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-700 font-semibold">
                     {course.credits}
                   </td>
+                  <td className="px-6 py-4 text-sm">
+                    {course.manuallyAdded ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                        ✏️ Manual
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        🤖 Auto
+                      </span>
+                    )}
+                  </td>
+                  {onRemoveCourse && (
+                    <td className="px-6 py-4 text-sm">
+                      <button
+                        onClick={() => onRemoveCourse(index)}
+                        className="text-red-600 hover:text-red-800 font-medium hover:bg-red-50 px-3 py-1 rounded-md transition-colors"
+                        title="Remove this course"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
             <tfoot className="bg-gradient-to-r from-gray-100 to-gray-200">
               <tr>
-                <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                <td className="px-6 py-4 text-sm font-bold text-gray-900" colSpan={onRemoveCourse ? 2 : 1}>
                   Total Credits
                 </td>
-                <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                <td className="px-6 py-4 text-sm font-bold text-gray-900" colSpan={onRemoveCourse ? 3 : 2}>
                   {totalCredits}
                 </td>
               </tr>

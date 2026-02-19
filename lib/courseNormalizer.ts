@@ -32,7 +32,7 @@ export function shouldIgnore(text: string): boolean {
   const lower = text.toLowerCase().trim();
 
   // Valid short course abbreviations
-  const validAbbreviations = ["la", "l.a.", "pe", "pe9", "pe10", "pe 9", "pe 10", "ap"];
+  const validAbbreviations = ["la", "l.a.", "lit", "pe", "pe9", "pe10", "pe 9", "pe 10", "ap"];
   if (validAbbreviations.some(abbr => lower === abbr || lower.startsWith(abbr + " "))) {
     return false;
   }
@@ -107,6 +107,7 @@ export function normalizeCourse(name: string): string {
   if (lower === "pe 10" || lower === "pe10" || lower === "pe tenth") return "PE 10";
   if (lower === "pe inclusion" || lower === "pe inc" || lower === "inclusion pe" || lower === "pe incl") return "PE Inclusion";
   if (lower === "la" || lower === "l.a." || lower === "l a") return "Literature & Writing";
+  if (lower === "lit") return "Literature & Writing"; // Handle "Lit" alone
   if (lower === "stem" || lower === "stern") return "STEM";
 
   // ========== PHASE 2: AP COURSES (second priority) ==========
@@ -362,7 +363,7 @@ export function normalizeCourse(name: string): string {
  * Splits multi-line course entries
  */
 export function splitCourses(rawText: string): string[] {
-  const validAbbreviations = ["la", "l.a.", "pe", "pe9", "pe10"];
+  const validAbbreviations = ["la", "l.a.", "lit", "pe", "pe9", "pe10"];
   return rawText
     .split("\n")
     .map(c => c.trim())

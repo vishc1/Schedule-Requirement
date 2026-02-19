@@ -29,6 +29,7 @@ export const LYNBROOK_COURSES: LynbrookCourse[] = [
     aliases: [
       "Lit & Writing",
       "Lit/Writing",
+      "Lit",
       "LA",
       "L.A.",
       "Language Arts",
