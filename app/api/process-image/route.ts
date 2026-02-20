@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { normalizeCourse, splitCourses, shouldIgnore } from "@/lib/courseNormalizer";
-import { categorizeCourses } from "@/lib/subjectCategorizer";
-import { findBestLynbrookMatch, findTopLynbrookMatches } from "@/lib/fuzzyMatcher";
+import { LYNBROOK_COURSES, COURSE_NAME_MAP } from "@/lib/lynbrookCourses";
+import { findBestLynbrookMatch } from "@/lib/fuzzyMatcher";
 import { calculateAllRequirements } from "@/lib/requirementsTracker";
-import { LYNBROOK_COURSES } from "@/lib/lynbrookCourses";
 
 export const maxDuration = 60; // seconds (Vercel hobby plan max)
 
@@ -105,114 +103,79 @@ Return JSON with this structure:
       );
     }
 
-    // ========== PASS 2: COURSE NAME EXTRACTION & NORMALIZATION ==========
-    console.log("\n🔍 PASS 2: Extracting and normalizing course names...");
+    // ========== PASS 2: COURSE EXTRACTION WITH GRADE INFO ==========
+    // Provide the official course list so the AI maps directly to official names
+    // and preserves which grade (9/10/11/12) each course appears in.
+    console.log("\n🔍 PASS 2: Extracting courses with grade info...");
+
+    const officialCourseNames = LYNBROOK_COURSES.map(c => c.name);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: `You are an expert at identifying official Lynbrook High School course names from raw table data.
+          content: `You are an expert at reading Lynbrook High School 4-year course planning tables.
 
-You have been given raw extracted text from a 4-year high school course planning table.
+OFFICIAL LYNBROOK COURSE LIST — use EXACT spelling from this list only:
+${JSON.stringify(officialCourseNames)}
 
 YOUR TASK:
-Identify and extract ONLY official course names. Filter out headers and labels.
+1. Read the raw table data (organized by grade column: 9th, 10th, 11th, 12th)
+2. For each course cell, map the text to the CLOSEST name in the official list above
+3. Record which grade (9, 10, 11, or 12) the course appears in
 
-CRITICAL RULES:
-1. IGNORE: Grade labels ("9th Grade", "10th", etc.), subject headers ("English", "Math", "PE" as standalone)
-2. EXTRACT: Actual course names like "AP Calculus BC", "Spanish 2", "PE 9", "Lit/Writing"
-3. Expand abbreviations to likely full course names
-4. If text is unclear, infer the closest official Lynbrook course name
-5. Multi-line entries: treat each line as a separate course
+WHAT TO IGNORE:
+- Grade column headers: "9th", "10th", "11th", "12th", "9th Grade", etc.
+- Subject row labels on the left: standalone "English", "Math", "Science", "Social Studies", "PE", "World Language", "Visual & Performing Arts"
+- Empty cells
 
-Return JSON: {"courses": [string]} - array of course name strings only.`,
+WHAT TO EXTRACT (text inside data cells):
+- "Lit/Writing", "LA", "World Lit", "AP Calc-BC", "Pre-calc H", "Chem H", "PE 9", "PE Inclusion", "Spanish 2", etc.
+- Multi-line cells: extract each line as a separate course entry
+
+COMMON ABBREVIATION → OFFICIAL NAME MAPPINGS:
+- "Lit/Writing", "LA", "English 9", "Eng 9" → "Literature & Writing"
+- "World Lit", "English 10" → "World Literature & Writing"
+- "Am Lit", "American Lit", "English 11" → "American Literature & Writing"
+- "AP Eng Lang", "AP Lang" → "AP English Language & Composition"
+- "AP Eng Lit", "AP Lit" → "AP English Literature & Composition"
+- "Pre-calc H", "Pre-Calc Honors" → "Pre-Calculus Honors"
+- "Pre-calc" → "Pre-Calculus"
+- "AP Calc-BC", "Calc BC", "Calc-BC" → "AP Calculus BC"
+- "AP Calc-AB", "Calc AB" → "AP Calculus AB"
+- "Stats", "AP Stats" → "AP Statistics"
+- "Linear Alg", "Dual: Linear Alg" → "Linear Algebra"
+- "Chem H" → "Chemistry Honors"; "Bio H" → "Biology Honors"; "Phys H" → "Physics Honors"
+- "AP Phys C Mech", "AP Physics C:Mech" → "AP Physics C: Mechanics"
+- "AP Physics C E&M" → "AP Physics C: Electricity & Magnetism"
+- "AP Env Sci", "AP Environmental" → "AP Environmental Science"
+- "AP Gov", "AP Govt" → "AP US Government & Politics"
+- "AP US Hist", "APUSH" → "AP US History"
+- "AP World Hist" → "AP World History"
+- "AP Macro" → "AP Macroeconomics"; "AP Micro" → "AP Microeconomics"
+- "AP Psych" → "AP Psychology"
+- "AP Comp Sci A", "AP CS A" → "AP Computer Science A"
+- "AP Comp Sci Principles", "AP CSP" → "AP Computer Science Principles"
+- "AP Spanish", "AP Span" → "AP Spanish Language & Culture"
+- "AP French" → "AP French Language & Culture"
+- "AP Chinese", "AP Mandarin" → "AP Chinese Language & Culture"
+- "AP Studio Art", "AP Art" → "AP Studio Art"
+
+Return JSON: {"courses": [{"name": "Official Course Name", "grade": 9}]}`,
         },
         {
           role: "user",
-          content: `Here is the raw table data extracted from the image:
+          content: `Raw table data from the image (organized by grade column):
 
 ${rawTableContent}
 
-Now extract ONLY the official course names from this data.
-
-📋 TABLE STRUCTURE:
-- Columns: 9th Grade | 10th Grade | 11th Grade | 12th Grade
-- Rows: Subject areas (English, Math, Science, Social Studies, PE, Languages, Arts, etc.)
-- Data cells: Students write their planned courses
-
-🎯 YOUR TASK: Extract ONLY actual course names from data cells.
-
-🚫 WHAT TO IGNORE (Headers - DO NOT EXTRACT):
-✗ Grade labels: "9th Grade", "10th Grade", "11th Grade", "12th Grade"
-✗ Short grade labels: "9th", "10th", "11th", "12th"
-✗ Subject row headers: "English", "Math", "Science", "Social Studies", "PE", "World Language", "Visual & Performing Arts"
-✗ Category labels: "Mathematics", "Physical Education", "Language Arts"
-✗ Table structure: Lines, borders, grid marks
-✗ Empty cells: Skip them
-✗ Note: When you see "PE" or "English" AS A ROW LABEL on the left side, that's a header. When you see "PE 9" or "Lit/Writing" INSIDE A CELL, that's a course!
-
-✅ WHAT TO EXTRACT (Data in cells - these are COURSES):
-✓ **English/Language Arts**: "Lit/Writing", "LA", "World Literature", "World Lit", "AP Eng Lang and Comp", "AP English Language", "Story and Style"
-✓ **Math**: "Pre-Calc Honors", "Pre-Calculus", "AP Calc-BC", "AP Calculus BC", "Calc-BC", "AP Statistics", "Linear Algebra", "Dual: Linear Alg"
-✓ **Science**: "Biology", "Chemistry Honors", "AP Chemistry", "Physics", "AP Physics C", "AP Physics C:Mech", "AP Phys C Mech", "AP Environmental"
-✓ **Social Studies**: "World History", "AP US History", "AP U.S History", "Economics", "AP Government", "AP Psychology"
-✓ **PE**: "PE 9", "PE 10", "PE Inclusion", "Physical Education 9"
-✓ **Languages**: "Spanish 1", "Spanish 2", "Spanish 3", "Spanish 4", "AP Spanish", "French 2", "Mandarin 3"
-✓ **Arts**: "Art 1", "AP Studio Art", "Band", "Orchestra", "Photography"
-✓ **Other**: "AP Computer Science", "AP Comp Sci Principles", "Journalism", "STEM", "Health"
-✓ Multi-line cells: "AP Statistics\nDual: Linear Alg" → Extract BOTH courses separately
-
-🧠 INDUCTIVE REASONING FOR MESSY HANDWRITING:
-
-**Location matters**:
-- If text is in a COLUMN HEADER or ROW LABEL position → it's a header (ignore it)
-- If text is INSIDE A DATA CELL under a grade column → it's a course (extract it)
-- Example: "PE" as a row label = ignore; "PE 9" in a cell = extract as course
-
-**Abbreviation expansion**:
-- "Pre-calc" / "Precalc" → "Pre-Calculus" or "Pre-Calculus Honors"
-- "AP Eng Lang" / "Eng Lang and Comp" → "AP English Language & Composition"
-- "Calc-BC" / "Calc BC" → "AP Calculus BC"
-- "LA" / "Lit/Writing" → "Literature & Writing"
-- "World Lit" → "World Literature" or "World Literature & Writing"
-- "Stats" → "AP Statistics"
-- "Linear Alg" / "Dual Linear Alg" → "Linear Algebra"
-- "AP Physics C:Mech" / "AP Phys C Mech" → "AP Physics C: Mechanics"
-- "Chem" → "Chemistry"; "Chem H" → "Chemistry Honors"
-- "Bio" → "Biology"; "Phys" → "Physics"
-
-**Language courses with numbers**:
-- "Spanish 2", "Spanish 3", "Spanish 4" → extract as-is
-- "French 1", "Mandarin 3", "Japanese 2" → extract as-is
-- "AP Spanish" → "AP Spanish Language & Culture"
-
-**PE courses are ALWAYS courses, never headers**:
-- "PE 9", "PE9", "PE 10", "PE10" → extract them as courses
-- "PE Inclusion", "PE Inc", "Inclusion PE", "PE Incl" → extract them as courses
-- IMPORTANT: "PE Inclusion" is a COURSE NAME, not a category label!
-
-**When in doubt**:
-- If text contains "AP" → it's a course
-- If partially unclear, choose the closest official Lynbrook course name
-- Multi-line cells: extract each line separately
-
-📝 SPECIAL CASES:
-- Multi-line cells: Extract each line as a separate course
-- Abbreviations: Preserve them (we'll normalize later)
-- Unclear text: Use best judgment based on context (grade level, surrounding courses)
-- Empty cells: Skip them
-
-Return JSON:
-{
-  "courses": ["course1", "course2"]
-}`
+Extract all courses with their grade level (9, 10, 11, or 12). Use EXACT official course names from the provided list.`,
         },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 3000, // Increased for more comprehensive extraction
-      temperature: 0.2, // Slightly higher for better inference with unclear text
+      max_tokens: 2000,
+      temperature: 0.1,
     });
 
     const responseContent = response.choices[0]?.message?.content || "";
@@ -224,182 +187,85 @@ Return JSON:
       );
     }
 
-    // Parse JSON response - expect array of course name strings
-    let courseNames: string[] = [];
+    // Parse the response — expect [{name, grade}] format
+    interface ExtractedItem { name: string; grade?: number }
+    let extractedItems: ExtractedItem[] = [];
 
     try {
       const parsed = JSON.parse(responseContent.trim());
-
-      // Handle different response formats
-      if (Array.isArray(parsed)) {
-        courseNames = parsed.filter((c: unknown) => typeof c === "string");
-      } else if (parsed.courses && Array.isArray(parsed.courses)) {
-        courseNames = parsed.courses.filter((c: unknown) => typeof c === "string");
-      } else {
-        return NextResponse.json(
-          {
-            error: "Invalid response format. Expected courses array of strings.",
-            rawResponse: responseContent,
-          },
-          { status: 500 }
-        );
+      const rawList = Array.isArray(parsed) ? parsed : (parsed.courses || []);
+      for (const item of rawList) {
+        if (typeof item === "string") {
+          extractedItems.push({ name: item });
+        } else if (item && typeof item.name === "string") {
+          extractedItems.push({
+            name: item.name.trim(),
+            grade: [9, 10, 11, 12].includes(item.grade) ? item.grade : undefined,
+          });
+        }
       }
-
-      // Debug: Log raw OCR extraction
-      console.log("📋 RAW OCR EXTRACTION:", JSON.stringify(courseNames, null, 2));
-    } catch (parseError) {
-      // If JSON parsing fails, try to extract JSON from markdown code blocks
-      const jsonMatch = responseContent.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          courseNames = Array.isArray(parsed)
-            ? parsed.filter((c: unknown) => typeof c === "string")
-            : (parsed.courses || []).filter((c: unknown) => typeof c === "string");
-        } catch (e) {
-          return NextResponse.json(
-            {
-              error: "Failed to parse course data. Please try again with a clearer image.",
-              rawResponse: responseContent,
-            },
-            { status: 500 }
-          );
-        }
-      } else {
-        return NextResponse.json(
-          {
-            error: "Failed to parse course data. Please try again with a clearer image.",
-            rawResponse: responseContent,
-          },
-          { status: 500 }
-        );
-      }
+      console.log("📋 EXTRACTED ITEMS:", JSON.stringify(extractedItems, null, 2));
+    } catch {
+      return NextResponse.json(
+        { error: "Failed to parse course data. Please try again with a clearer image." },
+        { status: 500 }
+      );
     }
 
-    // Split multi-line cells and process each course
-    let allCourseNames: string[] = [];
-    for (const courseText of courseNames) {
-      // Split if it contains multiple courses (e.g., "AP statistics\nDual: Linear Alg.")
-      const split = splitCourses(courseText);
-      allCourseNames.push(...split);
-    }
+    // Match each item to an official Lynbrook course.
+    // Since the AI outputs official names directly, try exact lookup first,
+    // then fall back to fuzzy matching for any imperfect AI output.
+    const matchedCourses: Array<{
+      course: string; credits: number; category: string;
+      ucCsuRequirement?: string; year?: 9 | 10 | 11 | 12;
+    }> = [];
+    const seenNames = new Set<string>();
 
-    // Normalize FIRST (so "LA" becomes "Language Arts" before filtering)
-    // Then filter out headers and validate
-    console.log("🔄 BEFORE NORMALIZATION:", allCourseNames);
+    console.log("\n🔍 MATCHING:");
+    for (const item of extractedItems) {
+      const nameLower = item.name.toLowerCase();
+      if (seenNames.has(nameLower)) continue;
+      seenNames.add(nameLower);
 
-    const normalizedCourses = allCourseNames
-      .map(c => c.trim())
-      .map(c => {
-        const normalized = normalizeCourse(c);
-        if (normalized !== c) {
-          console.log(`  ✏️  "${c}" → "${normalized}"`);
-        }
-        return normalized;
-      }) // Normalize first - converts "LA" to "Language Arts"
-      .filter(c => {
-        const tooShort = c.length <= 3;
-        if (tooShort) {
-          console.log(`  ⚠️  Filtering out "${c}" (too short after normalization)`);
-        }
-        return !tooShort;
-      }) // After normalization, require minimum length
-      .filter(c => {
-        const shouldIgnoreIt = shouldIgnore(c);
-        if (shouldIgnoreIt) {
-          console.log(`  🚫 Ignoring "${c}" (detected as header/label)`);
-        }
-        return !shouldIgnoreIt;
-      }); // Filter out headers/labels (after normalization)
-
-    console.log("✅ AFTER NORMALIZATION & FILTERING:", normalizedCourses);
-
-    // Deduplicate normalized courses (case-insensitive) to avoid adding the same course multiple times
-    const uniqueCourses = Array.from(
-      new Set(normalizedCourses.map(c => c.toLowerCase()))
-    ).map(lower =>
-      normalizedCourses.find(c => c.toLowerCase() === lower)!
-    );
-
-    // Debug logging
-    if (normalizedCourses.length === 0 && allCourseNames.length > 0) {
-      console.log("RAW OCR extracted:", allCourseNames);
-      console.log("After filtering:", normalizedCourses);
-    }
-    if (normalizedCourses.length !== uniqueCourses.length) {
-      console.log(`Removed ${normalizedCourses.length - uniqueCourses.length} duplicate course(s)`);
-    }
-
-    // Use fuzzy matching to find official Lynbrook courses with exact credits
-    const matchedCourses: Array<{ course: string; credits: number; category: string; ucCsuRequirement?: string }> = [];
-    const unmatchedCourses: string[] = [];
-
-    console.log("\n🔍 FUZZY MATCHING:");
-    for (const courseName of uniqueCourses) {
-      const match = findBestLynbrookMatch(courseName);
-
-      if (match && match.score >= 0.5) {
-        // Good match found - use official course name, credits, category, and UC/CSU requirement
-        const lynbrookCourse = LYNBROOK_COURSES.find(c => c.name === match.course);
+      // 1. Exact lookup (works when AI outputs official name correctly)
+      const exactMatch = COURSE_NAME_MAP[nameLower];
+      if (exactMatch) {
         matchedCourses.push({
-          course: match.course,
-          credits: match.credits,
-          category: match.category,
-          ucCsuRequirement: lynbrookCourse?.ucCsuRequirement,
+          course: exactMatch.name,
+          credits: exactMatch.credits,
+          category: exactMatch.category,
+          ucCsuRequirement: exactMatch.ucCsuRequirement,
+          year: item.grade as 9 | 10 | 11 | 12 | undefined,
         });
-        console.log(`  ✓ Matched "${courseName}" → "${match.course}" (${match.credits} credits, ${match.category}, score: ${match.score.toFixed(2)})`);
-      } else {
-        // No good match - try to get top matches for logging
-        const topMatches = findTopLynbrookMatches(courseName, 3);
-        if (topMatches.length > 0) {
-          console.log(`  ⚠️  Weak match for "${courseName}". Top candidates:`,
-            topMatches.map(m => `${m.course} (${m.score.toFixed(2)})`).join(", "));
-          // Use best candidate even if score is low
-          const lynbrookCourse = LYNBROOK_COURSES.find(c => c.name === topMatches[0].course);
-          matchedCourses.push({
-            course: topMatches[0].course,
-            credits: topMatches[0].credits,
-            category: topMatches[0].category,
-            ucCsuRequirement: lynbrookCourse?.ucCsuRequirement,
-          });
-        } else {
-          // Fallback: Keep original name and use categorizer for credits
-          unmatchedCourses.push(courseName);
-          console.log(`  ❌ No match found for "${courseName}" - using fallback`);
-        }
+        console.log(`  ✓ Exact: "${item.name}" → "${exactMatch.name}" (grade ${item.grade ?? "?"})`);
+        continue;
       }
-    }
 
-    // Handle unmatched courses with categorizer fallback
-    if (unmatchedCourses.length > 0) {
-      const fallbackCourses: Course[] = unmatchedCourses.map((courseName) => ({
-        course: courseName,
-        credits: 10, // Default to year-long course
-      }));
-
-      const subjectBreakdown = categorizeCourses(fallbackCourses);
-      subjectBreakdown.forEach(subject => {
-        subject.courses.forEach(course => {
-          matchedCourses.push({
-            course: course.course,
-            credits: course.credits,
-            category: subject.name,
-            ucCsuRequirement: undefined, // Fallback courses don't have UC/CSU mapping
-          });
+      // 2. Fuzzy fallback for cases AI didn't normalize perfectly
+      const fuzzy = findBestLynbrookMatch(item.name);
+      if (fuzzy && fuzzy.score >= 0.45) {
+        const lynbrookCourse = LYNBROOK_COURSES.find(c => c.name === fuzzy.course);
+        matchedCourses.push({
+          course: fuzzy.course,
+          credits: fuzzy.credits,
+          category: fuzzy.category,
+          ucCsuRequirement: lynbrookCourse?.ucCsuRequirement,
+          year: item.grade as 9 | 10 | 11 | 12 | undefined,
         });
-      });
+        console.log(`  ~ Fuzzy: "${item.name}" → "${fuzzy.course}" (score: ${fuzzy.score.toFixed(2)}, grade ${item.grade ?? "?"})`);
+        continue;
+      }
+
+      console.log(`  ✗ Dropped: "${item.name}" (no match found — likely a header)`);
     }
 
-    // Final deduplication: Remove duplicate courses from matched results
-    // This catches cases where different input variations all fuzzy match to the same official course
+    // Final deduplication by official course name (different AI phrasings → same course)
     const uniqueMatchedCourses = Array.from(
-      new Map(
-        matchedCourses.map(c => [c.course.toLowerCase(), c])
-      ).values()
+      new Map(matchedCourses.map(c => [c.course.toLowerCase(), c])).values()
     );
 
     if (matchedCourses.length !== uniqueMatchedCourses.length) {
-      console.log(`Removed ${matchedCourses.length - uniqueMatchedCourses.length} duplicate course(s) from final results`);
+      console.log(`Removed ${matchedCourses.length - uniqueMatchedCourses.length} duplicate(s)`);
     }
 
     const courses = uniqueMatchedCourses;
