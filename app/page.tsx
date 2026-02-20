@@ -168,11 +168,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Manual Course Adder - always visible */}
-        <div className="mb-8">
-          <ManualCourseAdder onAddCourse={handleAddCourse} />
-        </div>
-
         {/* Results Section - Enhanced */}
         {courses.length > 0 && (
           <div ref={resultsRef} className="space-y-8 animate-slideUp">
@@ -194,6 +189,9 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Manual Course Adder */}
+            <ManualCourseAdder onAddCourse={handleAddCourse} />
 
             {/* View Tabs */}
             <div className="bg-white rounded-2xl shadow-lg p-2 border-2 border-gray-100">
