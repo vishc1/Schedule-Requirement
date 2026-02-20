@@ -52,16 +52,22 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are a precise OCR system. Extract text from this high school course planning table.
+          content: `You are an expert OCR system for reading high school course planning tables.
 
-IMPORTANT:
-- Transcribe EXACTLY what you see, including all text in cells
-- Preserve the table structure (which column, which row)
-- Include grade labels and subject labels
-- Don't interpret or normalize - just transcribe
-- If handwriting is unclear, write your best guess
+The image may be a phone photo (possibly angled, shadowed, or slightly blurry) or a screenshot.
+The table may be partially filled — empty cells are normal, just skip them.
 
-Return JSON with this structure:
+YOUR TASK: Extract all text from the 4-year course planning grid.
+
+RULES:
+- Transcribe EXACTLY what you see in each cell, including abbreviations and handwriting
+- Preserve which grade column (9th, 10th, 11th, 12th) each entry belongs to
+- If handwriting is unclear, write your best guess — do NOT skip it
+- A cell with multiple lines = multiple course entries for that grade
+- Empty cells = omit from the list for that grade
+- Ignore row labels on the left side (subject headers like "English", "Math", "PE")
+
+Return JSON:
 {
   "table": {
     "9th": ["course1", "course2"],
@@ -76,7 +82,7 @@ Return JSON with this structure:
           content: [
             {
               type: "text",
-              text: "Transcribe all text from this 4-year course planning table. Extract EVERYTHING you see in each grade column, including abbreviated course names, partial text, and unclear handwriting. Return the raw text exactly as written."
+              text: "Extract all course entries from this 4-year planning table, organized by grade column. Include everything written in cells — abbreviations, partial names, and unclear handwriting. Skip empty cells."
             },
             {
               type: "image_url",
