@@ -75,7 +75,7 @@ export default function Home() {
     setCourses(updatedCourses);
 
     // Recalculate requirements
-    const newRequirements = calculateAllRequirements(updatedCourses);
+    const newRequirements = calculateAllRequirements(updatedCourses.map(c => ({ ...c, category: c.category ?? "" })));
     setRequirements({
       lynbrook: newRequirements.lynbrook,
       uc: newRequirements.uc,
@@ -89,7 +89,7 @@ export default function Home() {
 
     // Recalculate requirements
     if (updatedCourses.length > 0) {
-      const newRequirements = calculateAllRequirements(updatedCourses);
+      const newRequirements = calculateAllRequirements(updatedCourses.map(c => ({ ...c, category: c.category ?? "" })));
       setRequirements({
         lynbrook: newRequirements.lynbrook,
         uc: newRequirements.uc,
