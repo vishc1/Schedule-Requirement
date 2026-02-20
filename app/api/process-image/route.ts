@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-
-export const maxDuration = 60; // seconds (Vercel hobby plan max)
 import { normalizeCourse, splitCourses, shouldIgnore } from "@/lib/courseNormalizer";
 import { categorizeCourses } from "@/lib/subjectCategorizer";
 import { findBestLynbrookMatch, findTopLynbrookMatches } from "@/lib/fuzzyMatcher";
 import { calculateAllRequirements } from "@/lib/requirementsTracker";
 import { LYNBROOK_COURSES } from "@/lib/lynbrookCourses";
+
+export const maxDuration = 60; // seconds (Vercel hobby plan max)
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
