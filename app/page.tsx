@@ -263,9 +263,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Manual Course Adder */}
-                <ManualCourseAdder onAddCourse={handleAddCourse} />
-
                 {/* Course List */}
                 <div className="bg-white rounded-3xl shadow-2xl p-10 border-2 border-gray-100">
                   <div className="mb-8">
@@ -281,6 +278,9 @@ export default function Home() {
                   </div>
                   <ResultsTable courses={courses} onRemoveCourse={handleRemoveCourse} />
                 </div>
+
+                {/* Manual Course Adder */}
+                <ManualCourseAdder onAddCourse={handleAddCourse} />
               </>
             )}
 
