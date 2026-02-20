@@ -168,6 +168,11 @@ export default function Home() {
           </div>
         )}
 
+        {/* Manual Course Adder - always visible */}
+        <div className="mb-8">
+          <ManualCourseAdder onAddCourse={handleAddCourse} />
+        </div>
+
         {/* Results Section - Enhanced */}
         {courses.length > 0 && (
           <div ref={resultsRef} className="space-y-8 animate-slideUp">
@@ -279,8 +284,6 @@ export default function Home() {
                   <ResultsTable courses={courses} onRemoveCourse={handleRemoveCourse} />
                 </div>
 
-                {/* Manual Course Adder */}
-                <ManualCourseAdder onAddCourse={handleAddCourse} />
               </>
             )}
 
