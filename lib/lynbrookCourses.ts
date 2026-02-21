@@ -29,6 +29,9 @@ export const LYNBROOK_COURSES: LynbrookCourse[] = [
     aliases: [
       "Lit & Writing",
       "Lit/Writing",
+      "Lit / Writing",
+      "Lit/ Writing",
+      "Lit /Writing",
       "Lit",
       "LA",
       "L.A.",
@@ -39,7 +42,11 @@ export const LYNBROOK_COURSES: LynbrookCourse[] = [
       "Eng 9",
       "English",
       "Lit/Wnting",
-      "Llt/Writing"
+      "Lit / Wnting",
+      "Llt/Writing",
+      "Llt / Writing",
+      "Literature & Writing 9",
+      "Lit & Writ"
     ]
   },
   {

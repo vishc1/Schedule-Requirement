@@ -133,11 +133,13 @@ YOUR TASK:
 
 WHAT TO IGNORE:
 - Grade column headers: "9th", "10th", "11th", "12th", "9th Grade", etc.
-- Subject row labels on the left: standalone "English", "Math", "Science", "Social Studies", "PE", "World Language", "Visual & Performing Arts"
+- Subject row labels on the LEFT MARGIN only: standalone "English", "Math", "Science", "Social Studies", "PE", "World Language", "Visual & Performing Arts" — ONLY when they appear as the row header, NOT when they appear inside data cells
 - Empty cells
 
+CRITICAL: "Lit/Writing", "LA", "World Lit", "Am Lit" ARE course names that appear INSIDE data cells — do NOT skip them. They look similar to subject headers but they are actual course entries.
+
 WHAT TO EXTRACT (text inside data cells):
-- "Lit/Writing", "LA", "World Lit", "AP Calc-BC", "Pre-calc H", "Chem H", "PE 9", "PE Inclusion", "Spanish 2", etc.
+- "Lit/Writing", "LA", "World Lit", "Am Lit", "AP Calc-BC", "Pre-calc H", "Chem H", "PE 9", "PE Inclusion", "Spanish 2", etc.
 - Multi-line cells: extract each line as a separate course entry
 
 COMMON ABBREVIATION → OFFICIAL NAME MAPPINGS:
@@ -229,7 +231,11 @@ Extract all courses with their grade level (9, 10, 11, or 12). Use EXACT officia
 
     console.log("\n🔍 MATCHING:");
     for (const item of extractedItems) {
-      const nameLower = item.name.toLowerCase();
+      // Normalize: lowercase, collapse spaces around slashes/ampersands, trim
+      const nameLower = item.name.toLowerCase()
+        .replace(/\s*\/\s*/g, "/")
+        .replace(/\s*&\s*/g, " & ")
+        .trim();
       if (seenNames.has(nameLower)) continue;
       seenNames.add(nameLower);
 

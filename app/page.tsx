@@ -48,7 +48,7 @@ function FeedbackForm() {
             placeholder="Your name (optional)"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
           <textarea
             placeholder="Found a bug? Have a suggestion? Let us know..."
@@ -56,7 +56,7 @@ function FeedbackForm() {
             onChange={e => setMessage(e.target.value)}
             rows={3}
             required
-            className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+            className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
           />
           {status === "error" && (
             <p className="text-red-600 text-xs">Something went wrong. Please try again.</p>
