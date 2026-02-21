@@ -10,9 +10,10 @@
   },
   "dependencies": {
     "next": "^14.2.18",
+    "openai": "^4.47.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "openai": "^4.47.1"
+    "resend": "^6.9.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
@@ -24,4 +25,3 @@
     "typescript": "^5.5.3"
   }
 }
-
